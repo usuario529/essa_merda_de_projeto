@@ -66,16 +66,16 @@ class Jogo:
         self.spawn_intervalo = 1.0
         self.ultimo_spawn = 0
         self.tempo_inicio = time()
-        self.imagem_fundo = pygame.image.load(r"C:\\Users\\Efraim\\Desktop\\jogos\\sprites\\fundo.jpg")
+        self.imagem_fundo = pygame.image.load(r"sprites\fundo.jpg")
         self.imagem_fundo = pygame.transform.scale(self.imagem_fundo, (largura_tela, altura_tela))
         posiveis_comidas = [
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Avocado.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Bacon.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Bread.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Brownie.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Cheese.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Cookie.png",
-            r"C:\Users\Efraim\Desktop\jogos\sprites\Beer.png"
+            r"sprites\Avocado.png",
+            r"sprites\Bacon.png",
+            r"sprites\Bread.png",
+            r"sprites\Brownie.png",
+            r"sprites\Cheese.png",
+            r"sprites\Cookie.png",
+            r"sprites\Beer.png"
         ]
         imagens_comida = []
         for string in posiveis_comidas:
