@@ -6,7 +6,9 @@ from pygame.locals import *
 pygame.init()
 
 # Cores
+CINZA = (200, 200, 200)
 BRANCO = (255, 255, 255)
+VERMELHO = (255, 0, 0)
 PRETO = (0, 0, 0)
 AZUL = (0, 100, 255)
 ROXO = (128, 0, 128)
@@ -35,12 +37,14 @@ class Jogador:
         self.x = max(0, min(self.x, largura_tela - self.largura))
 
     def get_hitboxes(self):
-        cima = pygame.Rect(self.x, self.y, self.largura, self.altura / 2)
-        baixo = pygame.Rect(self.x, self.y + self.altura / 2, self.largura, self.altura / 2)
+        cima = pygame.Rect(self.x, self.y, self.largura, self.altura / 2 + 10)
+        baixo = pygame.Rect(self.x, self.y + self.altura / 2 + 10, self.largura, self.altura / 2 - 10)
         return cima, baixo
 
-    def desenhar(self, tela):
-        pygame.draw.rect(tela, AZUL, (self.x, self.y, self.largura, self.altura))
+    def desenhar(self, tela, string):
+        sprite_jogador = pygame.image.load(string)
+        sprite_jogador = pygame.transform.scale(sprite_jogador, (self.largura*1.5, self.altura*1.5))
+        tela.blit(sprite_jogador, (self.x, self.y - 20))
 
 class Comida:
     def __init__(self, imagem):
@@ -66,9 +70,9 @@ class Jogo:
         self.spawn_intervalo = 1.0
         self.ultimo_spawn = 0
         self.tempo_inicio = time()
-        self.imagem_fundo = pygame.image.load(r"sprites\fundo.jpg")
+        self.imagem_fundo = pygame.image.load(r"sprites\fundo_deck_praia.png")
         self.imagem_fundo = pygame.transform.scale(self.imagem_fundo, (largura_tela, altura_tela))
-        posiveis_comidas = [
+        self.posiveis_comidas = [
             r"sprites\Avocado.png",
             r"sprites\Bacon.png",
             r"sprites\Bread.png",
@@ -77,18 +81,30 @@ class Jogo:
             r"sprites\Cookie.png",
             r"sprites\Beer.png"
         ]
+
+        self.posicoes_personagem = [
+            r"sprites\correndo_esquerda.png",
+            r"sprites\parado.png",
+            r"sprites\correndo_direita.png"
+        ]
+
         imagens_comida = []
-        for string in posiveis_comidas:
+        for string in self.posiveis_comidas:
             sprite_comida = pygame.image.load(string)
             sprite_comida = pygame.transform.scale(sprite_comida, (60, 60))
             imagens_comida.append(sprite_comida)
         self.imagens_comida = imagens_comida
+
+        self.qtd_comidas = {}
+        for n in range(len(self.imagens_comida)):
+            self.qtd_comidas[f"qtd_comida{n + 1}"] = 0
     
-    def exibir_pausa(self):
+    def exibir_game_over(self, string_jogador):
         global esc_ja_pressionado
+        global voltou_no_menu
         # Desenhar o estado atual do jogo
         tela.blit(self.imagem_fundo, (0, 0))
-        self.jogador.desenhar(tela)
+        self.jogador.desenhar(tela, string_jogador)
         for comida in self.comidas:
             comida.desenhar(tela)
 
@@ -100,17 +116,26 @@ class Jogo:
         overlay.fill(PRETO)
         tela.blit(overlay, (0, 0))
 
-        # Texto "Continuar"
-        texto = fonte.render("Continuar", True, BRANCO)
-        texto_rect = texto.get_rect(center=(largura_tela // 2, altura_tela // 2))
+        # Texto "Sair"
+        texto1 = fonte.render("Sair", True, VERMELHO)
+        texto_rect1 = texto1.get_rect(center=(largura_tela // 2, altura_tela // 2 + 25))
+        hitbox_Sair = pygame.Rect(
+            texto_rect1.left - 10, texto_rect1.top - 10,
+            texto_rect1.width + 20, texto_rect1.height + 20
+        )
+
+        texto2 = fonte.render("Recomeçar", True, BRANCO)
+        texto_rect2 = texto2.get_rect(center=(largura_tela // 2, altura_tela // 2 - 25))
         hitbox_continuar = pygame.Rect(
-            texto_rect.left - 10, texto_rect.top - 10,
-            texto_rect.width + 20, texto_rect.height + 20
+            texto_rect2.left - 10, texto_rect2.top - 10,
+            texto_rect2.width + 20, texto_rect2.height + 20
         )
 
         # Desenhar botão
-        pygame.draw.rect(tela, (200, 200, 200), hitbox_continuar, 2)
-        tela.blit(texto, texto_rect)
+        pygame.draw.rect(tela, CINZA, hitbox_continuar, 2)
+        pygame.draw.rect(tela, CINZA, hitbox_Sair, 2)
+        tela.blit(texto1, texto_rect1)
+        tela.blit(texto2, texto_rect2)
         pygame.display.flip()
 
         # Esperar clique para continuar
@@ -124,15 +149,81 @@ class Jogo:
                 if evento.type == pygame.MOUSEBUTTONDOWN:
                     if evento.button == 1 and hitbox_continuar.collidepoint(evento.pos):
                         esperando = False
+                    if evento.button == 1 and hitbox_Sair.collidepoint(evento.pos):
+                        esperando = False
+                        voltou_no_menu = True
                 if teclas[K_ESCAPE]:
                     if not esc_ja_pressionado:
                         esperando = False
                 else:
                     esc_ja_pressionado = False
+    
+    def exibir_pausa(self, string_jogador):
+        global voltou_no_menu
+        global esc_ja_pressionado
+        # Desenhar o estado atual do jogo
+        tela.blit(self.imagem_fundo, (0, 0))
+        self.jogador.desenhar(tela, string_jogador)
+        for comida in self.comidas:
+            comida.desenhar(tela)
+
+        # Criar overlay escuro
+        overlay = pygame.Surface((largura_tela, altura_tela))
+        tela.blit(fonte.render(f"Pontuação: {self.pontos}", True, BRANCO), (20, 20))
+        tela.blit(fonte.render(f"Vidas: {self.vidas}", True, BRANCO), (470, 20))
+        overlay.set_alpha(150)  # semitransparente
+        overlay.fill(PRETO)
+        tela.blit(overlay, (0, 0))
+
+        # Texto "Sair"
+        texto1 = fonte.render("Sair", True, VERMELHO)
+        texto_rect1 = texto1.get_rect(center=(largura_tela // 2, altura_tela // 2 + 25))
+        hitbox_Sair = pygame.Rect(
+            texto_rect1.left - 10, texto_rect1.top - 10,
+            texto_rect1.width + 20, texto_rect1.height + 20
+        )
+
+        texto2 = fonte.render("Continuar", True, BRANCO)
+        texto_rect2 = texto2.get_rect(center=(largura_tela // 2, altura_tela // 2 - 25))
+        hitbox_continuar = pygame.Rect(
+            texto_rect2.left - 10, texto_rect2.top - 10,
+            texto_rect2.width + 20, texto_rect2.height + 20
+        )
+
+        # Desenhar botão
+        pygame.draw.rect(tela, CINZA, hitbox_continuar, 2)
+        pygame.draw.rect(tela, CINZA, hitbox_Sair, 2)
+        tela.blit(texto1, texto_rect1)
+        tela.blit(texto2, texto_rect2)
+        pygame.display.flip()
+
+        # Esperar clique para continuar
+        esperando = True
+        while esperando:
+            teclas = pygame.key.get_pressed()
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                
+                if teclas[K_ESCAPE]:
+                    if not esc_ja_pressionado:
+                        esperando = False
+                else:
+                    esc_ja_pressionado = False
+                    
+                if evento.type == pygame.MOUSEBUTTONDOWN:
+                    if evento.button == 1 and hitbox_continuar.collidepoint(evento.pos):
+                        esperando = False
+                    elif evento.button == 1 and hitbox_Sair.collidepoint(evento.pos):
+                        esperando = False
+                        voltou_no_menu = True
+                
 
     def rodar(self):
         clock = pygame.time.Clock()
         rodando = True
+        morreu = False
         global esc_ja_pressionado
         esc_ja_pressionado = False
         
@@ -147,22 +238,32 @@ class Jogo:
 
             teclas = pygame.key.get_pressed()
 
-            # Detecta o primeiro frame do ESC pressionado
-            if teclas[K_ESCAPE]:
-                if not esc_ja_pressionado:
-                    deley_spawn_antes_pause = time() - self.ultimo_spawn
-                    tempo_antes_pause = time()
-                    esc_ja_pressionado = True
-                    self.exibir_pausa()
-                    esc_ja_pressionado = False
-            else:
-                esc_ja_pressionado = False
-
             dx = 0
             if teclas[K_a]:
                 dx = -self.jogador.velocidade
             elif teclas[K_d]:
                 dx = self.jogador.velocidade
+            
+            if dx < 0:
+                n = 0
+            elif dx == 0:
+                n = 1
+            else:
+                n = 2
+            string_jogador = self.posicoes_personagem[n]
+
+            # Detecta o primeiro frame do ESC pressionado
+            if teclas[K_ESCAPE] and not esc_ja_pressionado:
+                deley_spawn_antes_pause = time() - self.ultimo_spawn
+                tempo_antes_pause = time()
+                esc_ja_pressionado = True
+                self.exibir_pausa(string_jogador)
+                pygame.event.clear()
+                if voltou_no_menu:
+                    rodando = False
+                esc_ja_pressionado = False
+            else:
+                esc_ja_pressionado = False
 
             hitbox_cima, hitbox_baixo = self.jogador.get_hitboxes()
 
@@ -185,12 +286,18 @@ class Jogo:
                 comida.mover(self.vel_comida)
                 if hitbox_cima.colliderect(comida.rect):
                     self.pontos += 1
+                    for n in range(len(self.posiveis_comidas)):
+                        if comida.imagem == self.posiveis_comidas[n]:
+                            self.qtd_comidas[f"qtd_comida{n + 1}"] += 1
+                            break
+                    
+
                 elif comida.y < altura_tela:
                     novas_comidas.append(comida)
                 else:
                     self.vidas -= 1
                     if self.vidas == 0:
-                        return  # fim de jogo
+                        morreu = True
 
             self.comidas = novas_comidas
 
@@ -204,7 +311,7 @@ class Jogo:
             if time() - self.tempo_inicio > 10:
                 self.spawn_intervalo = 0.7
 
-            self.jogador.desenhar(tela)
+            self.jogador.desenhar(tela, string_jogador)
             for comida in self.comidas:
                 comida.desenhar(tela)
 
@@ -212,6 +319,12 @@ class Jogo:
             tela.blit(fonte.render(f"Vidas: {self.vidas}", True, BRANCO), (470, 20))
 
             pygame.display.flip()
+
+            if morreu:
+                pygame.time.delay(200)
+                self.exibir_game_over(string_jogador)
+                return  # fim de jogo
+
             clock.tick(60)
 
 def exibir_menu():
@@ -224,8 +337,9 @@ def exibir_menu():
 
     esperando = True
     while esperando:
-        tela.fill(PRETO)
-        pygame.draw.rect(tela, (200, 200, 200), hitbox_iniciar, 2)
+        fundo_menu = pygame.image.load(r"sprites\fundo_menu.png")
+        tela.blit(fundo_menu, (0, 0))
+        pygame.draw.rect(tela, CINZA, hitbox_iniciar, 2)
         tela.blit(texto, texto_rect)
         pygame.display.flip()
 
@@ -236,8 +350,13 @@ def exibir_menu():
             elif evento.type == pygame.MOUSEBUTTONDOWN:
                 if hitbox_iniciar.collidepoint(evento.pos):
                     esperando = False
-
+voltou_no_menu = None
 while True:
-    exibir_menu()
+    if voltou_no_menu == None:
+        voltou_no_menu = False
+        exibir_menu()
+    if voltou_no_menu:
+        voltou_no_menu = not voltou_no_menu
+        exibir_menu()
     jogo = Jogo()
     jogo.rodar()
